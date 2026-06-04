@@ -1,0 +1,26 @@
+# Architectural Rules for Gemini Extension Project
+
+You are an AI assistant editing this codebase. You MUST strictly adhere to the following rules:
+
+## 1. Component Isolation & Self-Containment
+- Each component (RAG server, SQL database, MCP server) must be completely self-contained in its respective subdirectory:
+  - `rag-server/` for technical specifications, embedding models, and vector search API.
+  - `sql-database/` for Postgres schemas, initialization scripts, and data seeding.
+  - `mcp-server/` for the Node.js MCP server exposing tools to the `gemini` CLI.
+- No shared dependencies, scripts, or configuration files are allowed between directories. 
+- Environment variables must be isolated and configured per-service or passed via the root `docker-compose.yml`.
+
+## 2. Server Dockerization & Orchestration
+- All backend components that act as network servers (RAG server, SQL database) must be containerized.
+- The overall backend infrastructure must be orchestrated using Docker Compose (`docker-compose.yml`).
+- Map ports to the host (`localhost:8000` for RAG, `localhost:5432` for Postgres) to allow the local MCP server running on the host to connect.
+
+## 3. MCP Server Design & Communication
+- The MCP server must communicate with the `gemini` CLI using standard input/output (stdio).
+- **CRITICAL**: The MCP server must never write debug, logging, or informational output to `stdout`. All logs, errors, and debug traces must go to `stderr` (e.g. `console.error`) to prevent corruption of the JSON-RPC channel.
+- Implement clear tool schemas using `zod` for the MCP tools.
+
+## 4. Security & Safety
+- Use parameterized queries for all database interactions to prevent SQL injection.
+- Do not check secret environment files (`.env`) into source control. Place a `.env.example` file instead.
+- Avoid write operations to the database unless explicitly requested. Database access from the LLM should default to read-only where possible.
