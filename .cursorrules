@@ -10,15 +10,19 @@ You are an AI assistant editing this codebase. You MUST strictly adhere to the f
 - No shared dependencies, scripts, or configuration files are allowed between directories. 
 - Environment variables must be isolated and configured per-service or passed via the root `docker-compose.yml`.
 
-## 2. Server Dockerization & Orchestration
-- All backend components that act as network servers (RAG server, SQL database) must be containerized.
-- The overall backend infrastructure must be orchestrated using Docker Compose (`docker-compose.yml`).
-- Map ports to the host (`localhost:8000` for RAG, `localhost:5432` for Postgres) to allow the local MCP server running on the host to connect.
+## 2. Dockerization & Orchestration
+- **All** components (MCP server, RAG server, SQL database) must be containerized with a `Dockerfile` in their respective subdirectory.
+- The overall infrastructure must be orchestrated using Docker Compose (`docker-compose.yml`) on a shared network named `gemini-network`.
+- Inter-service communication uses Docker service DNS names and environment variables defined in compose — not `localhost`. For example: `http://rag-server:8000`, `postgresql://...@sql-database:5432/...`.
+- Host port mappings (`8000`, `5432`) are optional and for debugging only; MCP must not depend on them.
+- The Gemini CLI connects to the MCP server via `docker compose run --rm -i mcp-server` (stdio transport). The MCP server is spawned on demand, not run as a long-running HTTP service.
+- Future backend services (`rag-server`, `sql-database`) may use Docker Compose profiles (e.g. `backends`) until they are implemented.
 
 ## 3. MCP Server Design & Communication
 - The MCP server must communicate with the `gemini` CLI using standard input/output (stdio).
 - **CRITICAL**: The MCP server must never write debug, logging, or informational output to `stdout`. All logs, errors, and debug traces must go to `stderr` (e.g. `console.error`) to prevent corruption of the JSON-RPC channel.
 - Implement clear tool schemas using `zod` for the MCP tools.
+- Client modules must read backend URLs from environment variables (`RAG_URL`, `DATABASE_URL`) injected by `docker-compose.yml`.
 
 ## 4. Security & Safety
 - Use parameterized queries for all database interactions to prevent SQL injection.

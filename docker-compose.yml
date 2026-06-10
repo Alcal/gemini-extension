@@ -1,0 +1,30 @@
+services:
+  mcp-server:
+    build: ./mcp-server
+    stdin_open: true
+    networks:
+      - gemini-network
+    environment:
+      RAG_URL: http://rag-server:8000
+      DATABASE_URL: postgresql://hardware:hardware@sql-database:5432/hardware
+
+  rag-server:
+    profiles:
+      - backends
+    build: ./rag-server
+    networks:
+      - gemini-network
+    ports:
+      - "8000:8000"
+
+  sql-database:
+    profiles:
+      - backends
+    build: ./sql-database
+    networks:
+      - gemini-network
+    ports:
+      - "5432:5432"
+
+networks:
+  gemini-network:
