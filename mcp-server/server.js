@@ -6,6 +6,7 @@ import {
   getStockAndPrice,
   listParts,
 } from "./clients/sql-client.js";
+import { askGemini } from "./geminiService.js";
 
 const server = new McpServer({
   name: "hardware-mcp",
@@ -62,6 +63,54 @@ server.registerTool(
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
   },
+);
+
+server.registerTool(
+  "ask_assistant",
+  {
+    description:
+      "Main assistant that answers user questions using technical (RAG) and commercial (SQL) data.",
+    inputSchema: {
+      question: z.string().min(1).describe("User question"),
+    },
+  },
+  async ({ question }) => {
+    try {
+      // 1. Obtener info técnica (RAG)
+      const ragResults = await searchSpecs(question);
+
+      // 2. Obtener info comercial (SQL)
+      let sqlResults = null;
+
+      if (ragResults?.length > 0) {
+        const part = ragResults[0]?.part_number;
+        if (part) {
+          sqlResults = await getStockAndPrice(part);
+        }
+      }
+
+      // 3. Crear contexto
+      const context = `
+TECHNICAL DATA:
+${JSON.stringify(ragResults, null, 2)}
+
+COMMERCIAL DATA:
+${JSON.stringify(sqlResults, null, 2)}
+`;
+
+      // 4. Gemini genera respuesta
+      const answer = await askGemini(question, context);
+
+      return {
+        content: [{ type: "text", text: answer }],
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        content: [{ type: "text", text: "Error processing request" }],
+      };
+    }
+  }
 );
 
 async function main() {
