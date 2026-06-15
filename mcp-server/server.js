@@ -1,25 +1,28 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+
 import { searchSpecs } from "./clients/rag-client.js";
 import {
   getStockAndPrice,
   listParts,
 } from "./clients/sql-client.js";
+
 import { askGemini } from "./geminiService.js";
 
+// ✅ IMPORTANTE (esto faltaba)
 const server = new McpServer({
   name: "hardware-mcp",
   version: "1.0.0",
 });
 
+// 🔹 RAG
 server.registerTool(
   "search_specs",
   {
-    description:
-      "Search technical specifications and manual excerpts for automation hardware. Use when the user describes equipment informally (e.g. 'Siemens S7-1200 PLC') to find the matching part number.",
+    description: "Search technical specifications",
     inputSchema: {
-      query: z.string().min(1).describe("Search query for hardware specs"),
+      query: z.string().min(1),
     },
   },
   async ({ query }) => {
@@ -27,19 +30,16 @@ server.registerTool(
     return {
       content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
     };
-  },
+  }
 );
 
+// 🔹 SQL
 server.registerTool(
   "get_stock_and_price",
   {
-    description:
-      "Look up unit price, currency, stock level, and warehouse location for a specific part number.",
+    description: "Get price and stock",
     inputSchema: {
-      part_number: z
-        .string()
-        .min(1)
-        .describe("Manufacturer part number (e.g. 6ES7214-1AG40-0XB0)"),
+      part_number: z.string().min(1),
     },
   },
   async ({ part_number }) => {
@@ -47,14 +47,14 @@ server.registerTool(
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
-  },
+  }
 );
 
+// 🔹 LIST
 server.registerTool(
   "list_parts",
   {
-    description:
-      "List the full hardware catalog with part numbers, names, prices, and stock levels.",
+    description: "List parts",
     inputSchema: {},
   },
   async () => {
@@ -62,26 +62,25 @@ server.registerTool(
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
-  },
+  }
 );
 
+// 🔥 ASSISTANT (TU PARTE)
 server.registerTool(
   "ask_assistant",
   {
-    description:
-      "Main assistant that answers user questions using technical (RAG) and commercial (SQL) data.",
+    description: "Main assistant",
     inputSchema: {
-      question: z.string().min(1).describe("User question"),
+      question: z.string(),
     },
   },
   async ({ question }) => {
     try {
-      // 1. Obtener info técnica (RAG)
+      console.error("👉 Pregunta:", question);
+
       const ragResults = await searchSpecs(question);
 
-      // 2. Obtener info comercial (SQL)
       let sqlResults = null;
-
       if (ragResults?.length > 0) {
         const part = ragResults[0]?.part_number;
         if (part) {
@@ -89,23 +88,26 @@ server.registerTool(
         }
       }
 
-      // 3. Crear contexto
       const context = `
-TECHNICAL DATA:
-${JSON.stringify(ragResults, null, 2)}
+TECH:
+${JSON.stringify(ragResults)}
 
-COMMERCIAL DATA:
-${JSON.stringify(sqlResults, null, 2)}
+SQL:
+${JSON.stringify(sqlResults)}
 `;
 
-      // 4. Gemini genera respuesta
+      console.error("⏳ Gemini...");
+
       const answer = await askGemini(question, context);
+
+      console.error("✅ Respuesta lista");
 
       return {
         content: [{ type: "text", text: answer }],
       };
+
     } catch (error) {
-      console.error(error);
+      console.error("❌ Error:", error);
       return {
         content: [{ type: "text", text: "Error processing request" }],
       };
@@ -113,13 +115,11 @@ ${JSON.stringify(sqlResults, null, 2)}
   }
 );
 
+// ✅ INICIO
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("hardware-mcp server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});
+main().catch(console.error);
