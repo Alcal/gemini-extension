@@ -18,13 +18,11 @@ When a user asks about stock or pricing using an informal product description:
 
 When a user asks for a catalog overview or "what do you have in stock", use `list_parts`.
 
-## Placeholder Data
+## Data Sources
 
-The RAG and SQL backends are not yet connected. All tools currently return **mock data** for four sample products:
+The tools are backed by live services (start them with the `backends` Compose profile):
 
-- Siemens S7-1200 PLC (`6ES7214-1AG40-0XB0`)
-- Allen-Bradley PowerFlex 525 VFD (`25B-D4P0N104`)
-- Beckhoff EK1100 EtherCAT Coupler (`EK1100`)
-- Keyence LR-TB2000 Distance Sensor (`LR-TB2000`)
+- **`search_specs`** queries a RAG server over a curated sample of Bosch Rexroth **ctrlX** manuals and an error-code catalog. It returns `backend: "rag"` with scored excerpts, or an empty `results` list when nothing is relevant — in that case, tell the user you don't have that information instead of guessing.
+- **`get_stock_and_price`** and **`list_parts`** query a PostgreSQL catalog (`backend: "sql"`) of real ctrlX products. A part number can be either a commercial **typecode** (e.g. `COREX-C-X3-11-ANNN-21.01-VSRS-NN-NN`) or a **material number** (e.g. `R914518354`).
 
-Responses include `"backend": "mock"` to indicate placeholder data. Once the `backends` Docker Compose profile is enabled, live data will replace the mocks.
+Prices are list values (column YGDC, in EUR). Inventory levels are sample data.

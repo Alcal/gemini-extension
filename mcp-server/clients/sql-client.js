@@ -1,66 +1,109 @@
-import { PRODUCTS } from "./mock-data.js";
+import pg from "pg";
+
+const { Pool } = pg;
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
   "postgresql://hardware:hardware@sql-database:5432/hardware";
 
+// Single shared pool. All queries are parameterized and read-only (SELECT only).
+const pool = new Pool({ connectionString: DATABASE_URL, max: 5 });
+
+pool.on("error", (error) => {
+  console.error(`[sql-client] idle client error: ${error.message}`);
+});
+
 /**
- * Look up price and stock for a part number. Returns mock data until the
- * PostgreSQL backend at DATABASE_URL is implemented and wired in.
+ * Look up price and stock for a part number, matching either the commercial
+ * typecode or the material number.
  */
 export async function getStockAndPrice(partNumber) {
-  console.error(
-    `[sql-client] mock lookup (DATABASE_URL=${DATABASE_URL}): ${partNumber}`,
-  );
+  const sql = `
+    SELECT p.typecode,
+           p.material_number,
+           p.name AS product_name,
+           p.family,
+           pr.price_ygdc,
+           pr.currency,
+           i.stock_level,
+           i.warehouse_shelf
+    FROM products p
+    LEFT JOIN prices pr ON pr.product_id = p.id
+    LEFT JOIN inventory i ON i.product_id = p.id
+    WHERE p.typecode = $1 OR p.material_number = $1
+    LIMIT 1;`;
 
-  const product = PRODUCTS.find(
-    (item) => item.part_number.toLowerCase() === partNumber.toLowerCase(),
-  );
-
-  if (!product) {
+  try {
+    const { rows } = await pool.query(sql, [partNumber]);
+    if (rows.length === 0) {
+      return {
+        found: false,
+        backend: "sql",
+        part_number: partNumber,
+        message: `No product found for part number: ${partNumber}`,
+      };
+    }
+    const row = rows[0];
+    return {
+      found: true,
+      backend: "sql",
+      part_number: row.typecode ?? row.material_number,
+      typecode: row.typecode,
+      material_number: row.material_number,
+      product_name: row.product_name,
+      family: row.family,
+      unit_price: row.price_ygdc != null ? Number(row.price_ygdc) : null,
+      currency: row.currency,
+      stock_level: row.stock_level,
+      warehouse_shelf: row.warehouse_shelf,
+    };
+  } catch (error) {
+    console.error(`[sql-client] getStockAndPrice failed: ${error.message}`);
     return {
       found: false,
+      backend: "sql",
       part_number: partNumber,
-      backend: "mock",
-      database_url: DATABASE_URL,
-      message: `No product found for part number: ${partNumber}`,
+      error: "database_error",
     };
   }
-
-  return {
-    found: true,
-    backend: "mock",
-    database_url: DATABASE_URL,
-    part_number: product.part_number,
-    product_name: product.product_name,
-    brand: product.brand,
-    category: product.category,
-    unit_price: product.unit_price,
-    currency: product.currency,
-    stock_level: product.stock_level,
-    warehouse_shelf: product.warehouse_shelf,
-  };
 }
 
 /**
- * List the full product catalog. Returns mock data until the PostgreSQL
- * backend at DATABASE_URL is implemented and wired in.
+ * List the product catalog (typecode, name, price, stock). Capped by `limit`.
  */
-export async function listParts() {
-  console.error(`[sql-client] mock catalog (DATABASE_URL=${DATABASE_URL})`);
+export async function listParts(limit = 50) {
+  const sql = `
+    SELECT p.typecode,
+           p.material_number,
+           p.name AS product_name,
+           p.family,
+           pr.price_ygdc,
+           pr.currency,
+           i.stock_level
+    FROM products p
+    LEFT JOIN prices pr ON pr.product_id = p.id
+    LEFT JOIN inventory i ON i.product_id = p.id
+    ORDER BY p.id
+    LIMIT $1;`;
 
-  return {
-    backend: "mock",
-    database_url: DATABASE_URL,
-    count: PRODUCTS.length,
-    parts: PRODUCTS.map((product) => ({
-      part_number: product.part_number,
-      product_name: product.product_name,
-      brand: product.brand,
-      category: product.category,
-      unit_price: product.unit_price,
-      currency: product.currency,
-      stock_level: product.stock_level,
-    })),
-  };
+  try {
+    const { rows } = await pool.query(sql, [limit]);
+    return {
+      backend: "sql",
+      count: rows.length,
+      parts: rows.map((row) => ({
+        part_number: row.typecode ?? row.material_number,
+        typecode: row.typecode,
+        material_number: row.material_number,
+        product_name: row.product_name,
+        family: row.family,
+        unit_price: row.price_ygdc != null ? Number(row.price_ygdc) : null,
+        currency: row.currency,
+        stock_level: row.stock_level,
+      })),
+    };
+  } catch (error) {
+    console.error(`[sql-client] listParts failed: ${error.message}`);
+    return { backend: "sql", count: 0, parts: [], error: "database_error" };
+  }
 }

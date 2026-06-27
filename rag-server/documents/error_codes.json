@@ -1,0 +1,86 @@
+[
+  {
+    "error_code": "F2074",
+    "title": "Actual position value smaller than position limit value",
+    "cause": "The drive detected that the axis moved beyond the configured negative travel range limit, or the position limit parameters were set incorrectly after homing.",
+    "resolution": "Verify the homing reference, check parameters S-0-0049 and S-0-0050 (position limit values), move the axis back into the allowed range, and clear the fault with the error reset command.",
+    "product_family": "ctrlX DRIVE"
+  },
+  {
+    "error_code": "F2042",
+    "title": "Encoder 2: Encoder signals incorrect",
+    "cause": "The motor or external encoder cable is damaged, loose, or exposed to electromagnetic interference, producing invalid feedback signals.",
+    "resolution": "Inspect and reseat the encoder cable, confirm correct shielding and grounding, replace the cable if damaged, and re-run the encoder commissioning.",
+    "product_family": "ctrlX DRIVE"
+  },
+  {
+    "error_code": "F8060",
+    "title": "Overcurrent in power section",
+    "cause": "A short circuit in the motor cable or motor winding, or an incorrectly parameterized current loop, caused the output current to exceed the hardware limit.",
+    "resolution": "Disconnect the motor and measure winding resistance, check the motor cable for shorts, verify the current controller parameters, and restart the drive after the fault is cleared.",
+    "product_family": "ctrlX DRIVE"
+  },
+  {
+    "error_code": "E2814",
+    "title": "Undervoltage in mains",
+    "cause": "The mains supply voltage dropped below the configured threshold during operation, often due to grid disturbances or an undersized supply.",
+    "resolution": "Measure the supply voltage, confirm it stays within the rated range, check fuses and contactors, and consider a larger supply or a DC bus capacitor module.",
+    "product_family": "ctrlX DRIVE"
+  },
+  {
+    "error_code": "100A0010",
+    "title": "ctrlX CORE application could not be started",
+    "cause": "A required app is missing a dependency, the license is invalid, or the snap failed to install correctly after an update.",
+    "resolution": "Open Diagnostics in ctrlX OS, review the app logs, reinstall or update the affected app, verify the license activation, and restart the app from the Apps page.",
+    "product_family": "ctrlX CORE"
+  },
+  {
+    "error_code": "100A0021",
+    "title": "Fieldbus master not reaching operational state",
+    "cause": "An EtherCAT or PROFINET device on the bus is missing, misconfigured, or the network topology does not match the configured one.",
+    "resolution": "Check the physical bus wiring, compare the scanned topology with the project configuration, power-cycle the affected devices, and set the master back to operational.",
+    "product_family": "ctrlX CORE"
+  },
+  {
+    "error_code": "XIO-0x0042",
+    "title": "ctrlX IO bus coupler: terminal not responding",
+    "cause": "A terminal on the IP20 station lost communication because of a loose contact, a defective terminal, or insufficient bus power.",
+    "resolution": "Re-seat the terminals, verify the system module power supply, replace the suspected terminal, and restart the IO station to re-scan the bus.",
+    "product_family": "ctrlX IO"
+  },
+  {
+    "error_code": "XIO-0x0051",
+    "title": "Analog input module: measuring range exceeded",
+    "cause": "The signal connected to an analog input terminal is outside its configured measuring range or a sensor is wired incorrectly.",
+    "resolution": "Check the sensor wiring and signal level, select the correct measuring range in the module configuration, and confirm the scaling parameters.",
+    "product_family": "ctrlX IO"
+  },
+  {
+    "error_code": "SAFEX-0x0101",
+    "title": "ctrlX SAFETY: discrepancy error on dual-channel input",
+    "cause": "The two channels of a safety input changed state at different times beyond the configured discrepancy time, indicating a wiring fault or a failing sensor.",
+    "resolution": "Inspect both channels of the safety input wiring, verify the discrepancy time setting, test the safety device (e.g. e-stop), and acknowledge the safety fault after correction.",
+    "product_family": "ctrlX SAFETY"
+  },
+  {
+    "error_code": "SAFEX-0x0205",
+    "title": "ctrlX SAFETY: CRC mismatch in safety configuration",
+    "cause": "The safety configuration loaded on the SAFEX controller does not match the validated checksum, usually after an incomplete download.",
+    "resolution": "Re-download the validated safety project, verify the CRC reported matches the documented value, and re-run the safety acceptance test.",
+    "product_family": "ctrlX SAFETY"
+  },
+  {
+    "error_code": "100A0033",
+    "title": "ctrlX CORE: data layer node unavailable",
+    "cause": "A client requested a Data Layer node that is not provided because the providing app is stopped or the address path is wrong.",
+    "resolution": "Confirm the providing app is running, browse the Data Layer tree to verify the correct node path, and restart the app if the node is still missing.",
+    "product_family": "ctrlX CORE"
+  },
+  {
+    "error_code": "F6010",
+    "title": "PLC runtime: cycle time exceeded",
+    "cause": "The configured PLC task cycle time is too short for the program workload, causing a watchdog timeout.",
+    "resolution": "Increase the task cycle time, optimize the program to reduce execution time, or move heavy logic to a slower task, then restart the PLC.",
+    "product_family": "ctrlX CORE"
+  }
+]

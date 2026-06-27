@@ -10,11 +10,21 @@ import {
 
 import { askGemini } from "./geminiService.js";
 
-// ✅ IMPORTANTE (esto faltaba)
 const server = new McpServer({
   name: "hardware-mcp",
   version: "1.0.0",
 });
+
+// Best-effort extraction of a part identifier (material number R9xxxxxxxx or a
+// dashed typecode like COREX-C-X3-11-ANNN-21.01-VSRS-NN-NN) from free text, used
+// to chain a RAG hit into an SQL price/stock lookup inside ask_assistant.
+function extractPartNumber(text) {
+  if (!text) return null;
+  const material = text.match(/\bR9\d{8}\b/);
+  if (material) return material[0];
+  const typecode = text.match(/\b[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9.]+){2,}\b/);
+  return typecode ? typecode[0] : null;
+}
 
 // 🔹 RAG
 server.registerTool(
@@ -79,22 +89,26 @@ server.registerTool(
       console.error("👉 Pregunta:", question);
 
       const ragResults = await searchSpecs(question);
+      const ragItems = ragResults?.results ?? [];
 
+      // Chain into SQL when a part identifier appears in the question or the
+      // retrieved technical text.
       let sqlResults = null;
-      if (ragResults?.length > 0) {
-        const part = ragResults[0]?.part_number;
-        if (part) {
-          sqlResults = await getStockAndPrice(part);
-        }
+      const haystack = [question, ...ragItems.map((r) => r.text ?? "")].join(" ");
+      const part = extractPartNumber(haystack);
+      if (part) {
+        sqlResults = await getStockAndPrice(part);
       }
 
-      const context = `
-TECH:
-${JSON.stringify(ragResults)}
+      const techContext = ragItems.length
+        ? ragItems.map((r) => `- ${r.text}`).join("\n")
+        : "(no relevant documents found)";
 
-SQL:
-${JSON.stringify(sqlResults)}
-`;
+      const context = `TECH SPECS:
+${techContext}
+
+INVENTORY / PRICE:
+${sqlResults ? JSON.stringify(sqlResults) : "(no SQL match)"}`;
 
       console.error("⏳ Gemini...");
 

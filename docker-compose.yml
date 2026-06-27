@@ -7,6 +7,10 @@ services:
     environment:
       RAG_URL: http://rag-server:8000
       DATABASE_URL: postgresql://hardware:hardware@sql-database:5432/hardware
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    # No depends_on: the backends run separately (docker compose --profile backends
+    # up -d) and the gemini CLI spawns mcp-server on demand via stdio. Their
+    # healthchecks below gate readiness when the stack is brought up together.
 
   rag-server:
     profiles:
@@ -16,6 +20,14 @@ services:
       - gemini-network
     ports:
       - "8000:8000"
+    volumes:
+      - chromadata:/data/chroma
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   sql-database:
     profiles:
@@ -23,8 +35,25 @@ services:
     build: ./sql-database
     networks:
       - gemini-network
+    environment:
+      POSTGRES_USER: hardware
+      POSTGRES_PASSWORD: hardware
+      POSTGRES_DB: hardware
+    # Host port 5433 (not 5432) to avoid colliding with other local Postgres
+    # instances. Inter-service traffic uses sql-database:5432 on gemini-network.
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hardware -d hardware"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   gemini-network:
+
+volumes:
+  pgdata:
+  chromadata:

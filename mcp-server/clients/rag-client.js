@@ -1,60 +1,29 @@
-import { PRODUCTS } from "./mock-data.js";
-
 const RAG_URL = process.env.RAG_URL ?? "http://rag-server:8000";
 
-function tokenize(text) {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((token) => token.length > 1);
-}
-
-function scoreProduct(queryTokens, product) {
-  const searchable = [
-    product.part_number,
-    product.product_name,
-    product.brand,
-    product.category,
-    ...product.specs,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  let score = 0;
-  for (const token of queryTokens) {
-    if (searchable.includes(token)) {
-      score += 1;
-    }
-  }
-  return score;
-}
-
 /**
- * Search technical specifications. Returns mock results until the RAG server
- * at RAG_URL is implemented and wired in.
+ * Search technical specifications via the RAG server. Returns
+ * { query, backend, rag_url, results } where each result is
+ * { text, score, metadata }. On any failure or no match, results is [] so the
+ * assistant can state it has no answer instead of hallucinating (HU-03).
  */
-export async function searchSpecs(query) {
-  console.error(`[rag-client] mock search (RAG_URL=${RAG_URL}): ${query}`);
+export async function searchSpecs(query, k = 5) {
+  const url = `${RAG_URL}/search?query=${encodeURIComponent(query)}&k=${k}`;
 
-  const queryTokens = tokenize(query);
-  const results = PRODUCTS.map((product) => {
-    const score = scoreProduct(queryTokens, product);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`[rag-client] RAG server responded ${response.status}`);
+      return { query, backend: "rag", rag_url: RAG_URL, results: [] };
+    }
+    const data = await response.json();
     return {
-      part_number: product.part_number,
-      product_name: product.product_name,
-      brand: product.brand,
-      category: product.category,
-      score: score > 0 ? score / queryTokens.length : 0,
-      excerpt: product.specs[0],
+      query,
+      backend: "rag",
+      rag_url: RAG_URL,
+      results: Array.isArray(data.results) ? data.results : [],
     };
-  })
-    .filter((result) => result.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  return {
-    query,
-    backend: "mock",
-    rag_url: RAG_URL,
-    results,
-  };
+  } catch (error) {
+    console.error(`[rag-client] request to ${RAG_URL} failed: ${error.message}`);
+    return { query, backend: "rag", rag_url: RAG_URL, results: [] };
+  }
 }
