@@ -1,0 +1,16 @@
+{
+  "verify-docker-environment": {
+    "PreToolUse": [
+      {
+        "matcher": "search_specs|get_stock_and_price|list_parts|ask_assistant",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./verify-services.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

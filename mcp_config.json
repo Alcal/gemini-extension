@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "hardware-mcp": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "run",
+        "--rm",
+        "-i",
+        "mcp-server"
+      ]
+    }
+  }
+}

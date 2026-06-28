@@ -1,6 +1,6 @@
 ---
 name: gemini-extension-architect
-description: Guides the gemini agent to follow the project's containerized, self-contained architecture (Postgres, FastAPI RAG, Node.js MCP, and docker-compose orchestration). Use when designing components, updating configurations, or editing code within the workspace.
+description: Guides the agent to follow the project's containerized, self-contained architecture (Postgres, FastAPI RAG, Node.js MCP, and docker-compose orchestration). Use when designing components, updating configurations, or editing code within the workspace.
 ---
 
 # Gemini Extension Architect Skill
@@ -18,7 +18,7 @@ Ensure files are kept within their component boundaries:
 - Containers must be orchestrated via `docker-compose.yml` on a shared network named `gemini-network`.
 - Inter-service communication uses Docker service DNS names and env vars from compose — not `localhost`.
 - Host port mappings are optional and for debugging only; MCP must not depend on them.
-- The Gemini CLI spawns the MCP server via `docker compose run --rm -i mcp-server` (stdio-over-docker). Verify `gemini-extension.json` uses this pattern, not bare `node`.
+- The Antigravity CLI spawns the MCP server via `docker compose run --rm -i mcp-server` (stdio-over-docker). Verify `mcp_config.json` uses this pattern, not bare `node`.
 - The MCP service must set `stdin_open: true` in compose for stdio transport.
 - Future backends may use Compose profiles (e.g. `backends`) until implemented.
 
@@ -30,7 +30,7 @@ Ensure files are kept within their component boundaries:
 - RAG and SQL client modules must read `RAG_URL` and `DATABASE_URL` from environment variables.
 - These env vars are injected by `docker-compose.yml`, not hardcoded in source.
 
-## 5. Skills and Extensions Registration
-- Workspace-level extensions are declared in `gemini-extension.json` in the root of the workspace.
-- Recommend linking the extension using `gemini extensions link .`.
+## 5. Skills and Plugins Registration
+- Workspace-level plugins and MCP servers are declared in `mcp_config.json` and `hooks.json` in the root of the workspace.
+- Recommend installing the plugin using `agy plugin install .`.
 - Prerequisites: build the MCP image with `docker compose build mcp-server` before first use.

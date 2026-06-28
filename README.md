@@ -32,10 +32,13 @@ The workspace is organized into self-contained component directories:
 ```
 .
 ├── .cursorrules              # Project rules for editors & AI agents
-├── .gemini/
-│   └── skills/
-│       └── gemini-extension-architect/
-│           └── SKILL.md      # Rules skill for gemini CLI
+├── plugin.json               # Plugin metadata manifest
+├── mcp_config.json           # MCP server configuration manifest
+├── hooks.json                # Tool lifecycle hooks
+├── verify-services.sh        # Pre-tool hook script to start backends
+├── skills/
+│   └── gemini-extension-architect/
+│       └── SKILL.md          # Rules skill for Antigravity CLI
 ├── mcp-server/               # Exposes SQL & RAG tools to Gemini
 │   ├── Dockerfile            # Container image for the MCP server
 │   ├── package.json          # Node dependencies (@modelcontextprotocol/sdk, pg, zod)
@@ -55,8 +58,7 @@ The workspace is organized into self-contained component directories:
 │   └── scripts/
 │       └── extract_from_excel.py  # Dev tool: regenerates init.sql from the product Excel
 ├── docker-compose.yml        # Orchestrates all containers
-├── gemini-extension.json     # Extension configuration manifest
-├── GEMINI.md                 # Extension instruction guidelines
+├── AGENTS.md                 # Extension instruction guidelines
 └── README.md                 # This file
 ```
 
@@ -64,32 +66,31 @@ The workspace is organized into self-contained component directories:
 
 ## Component Specifications
 
-### 1. Extension Manifest & Instructions
-- **`gemini-extension.json`**: Tells the `gemini` CLI how to load this extension and spawn the MCP server container.
+### 1. Antigravity Configuration & Instructions
+- **`plugin.json`**: Defines the metadata and identity of the Antigravity plugin.
+- **`mcp_config.json`**: Tells the Antigravity CLI how to load this extension and spawn the MCP server container.
   ```json
   {
-    "name": "gemini-mcp-hardware-extension",
-    "version": "1.0.0",
-    "description": "Access automation hardware specifications and stock levels.",
     "mcpServers": {
       "hardware-mcp": {
         "command": "docker",
         "args": [
           "compose",
-          "-f", "${extensionPath}${/}docker-compose.yml",
-          "run", "--rm", "-i",
+          "run",
+          "--rm",
+          "-i",
           "mcp-server"
-        ],
-        "cwd": "${extensionPath}"
+        ]
       }
-    },
-    "contextFileName": "GEMINI.md"
+    }
   }
   ```
-- **`GEMINI.md`**: Provides instruction overrides to Gemini. It explains how to match informal user descriptions (e.g. *"Siemens S7-1200 PLC"*) to part numbers (e.g., `6ES7214-1AG40-0XB0`) by query chaining (first search specs via RAG, then look up price/stock via SQL).
+- **`hooks.json`**: Configures lifecycle hooks. It defines a `PreToolUse` hook that runs `verify-services.sh` to ensure the Docker backend services are running before any tool is executed.
+- **`verify-services.sh`**: Pre-tool hook script that starts the backend services if they are not running.
+- **`AGENTS.md`**: Provides instruction overrides to the agent. It explains how to match informal user descriptions (e.g. *"Siemens S7-1200 PLC"*) to part numbers (e.g., `6ES7214-1AG40-0XB0`) by query chaining (first search specs via RAG, then look up price/stock via SQL).
 
 ### 2. MCP Server (`mcp-server/`)
-- Written in **Node.js**, containerized with a `Dockerfile`, and spawned on demand by the Gemini CLI.
+- Written in **Node.js**, containerized with a `Dockerfile`, and spawned on demand by the Antigravity CLI.
 - Exposes four tools to the model:
   1. `search_specs(query: string)`: Semantic search over the RAG server (`RAG_URL`). Returns `[]` when nothing clears the score threshold, so the model can say it has no answer.
   2. `get_stock_and_price(part_number: string)`: Looks up price and stock in PostgreSQL (`DATABASE_URL`) by typecode **or** material number. Parameterized, read-only.
@@ -122,7 +123,7 @@ The workspace is organized into self-contained component directories:
 To ensure future developers and AI editors follow these boundaries, two rulesets have been created:
 
 1. **[.cursorrules](file:///.cursorrules)**: Enforces component isolation, Dockerization standards, and MCP stdio safety directly inside Cursor or matching IDE agents.
-2. **[.gemini/skills/gemini-extension-architect/SKILL.md](file:///.gemini/skills/gemini-extension-architect/SKILL.md)**: An on-demand agent skill loaded by the `gemini` CLI when updating or adding modules. It provides the model with architecture verification instructions.
+2. **[skills/gemini-extension-architect/SKILL.md](file:///skills/gemini-extension-architect/SKILL.md)**: An on-demand agent skill loaded by the Antigravity CLI (`agy`) when updating or adding modules. It provides the model with architecture verification instructions.
 
 ---
 
@@ -138,10 +139,10 @@ To ensure future developers and AI editors follow these boundaries, two rulesets
    ```bash
    docker compose build mcp-server
    ```
-4. **Link & Enable Extension**, then **launch Gemini**:
+4. **Link & Enable Plugin**, then **launch Antigravity CLI**:
    ```bash
-   gemini extensions link .
-   gemini
+   agy plugin link .
+   agy
    ```
 
 ### Regenerating the SQL seed
